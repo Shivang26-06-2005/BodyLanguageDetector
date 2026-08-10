@@ -4,129 +4,52 @@ HireVisor is an AI-powered human interview candidate assessment system. It combi
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
-HireVisor is designed around a modular **Multi-Modal Deep Learning & Real-Time Data Pipeline Architecture**. Below is an architectural overview of how client-side streams, API services, neural inferencing modules, fusion metrics, and candidate report synthesis interact.
+HireVisor works in **3 steps**:
+1. **User Interface (React Frontend)** captures live video and audio from the candidate's camera and microphone.
+2. **AI Server (Flask Backend)** runs **5 specialized AI models** in real-time to analyze video frames and voice signals.
+3. **Multimodal Fusion Engine** combines all model outputs into live dashboard metrics (Confidence %, Eye Contact, Voice Tone) and generates a final candidate scorecard.
 
-### Architecture Diagram
+---
+
+### How Data Flows Through HireVisor
 
 ```mermaid
-graph TD
-    subgraph Client["Client Layer (React Frontend)"]
-        UI["Live Video HUD & Dashboard"]
-        MediaStream["WebCam & Microphone Stream Processor"]
+flowchart LR
+    A["Candidate WebCam & Mic"] --> B["Flask AI Backend"]
+    
+    subgraph AI["5 AI Analysis Models"]
+        B --> C1["Facial Expressions"]
+        B --> C2["Body Language & Pose"]
+        B --> C3["Voice Emotion"]
+        B --> C4["Speech Speed & Stress"]
+        B --> C5["Final BART Reporter"]
     end
-
-    subgraph API["REST API Layer (Flask Server - Port 5000)"]
-        Routes["Flask Router (app.py)"]
-        StatusEP["/api/status"]
-        FrameEP["/api/predict_frame"]
-        AudioEP["/api/predict_audio"]
-        ReportEP["/api/generate_report"]
-    end
-
-    subgraph CoreEngine["Core Orchestration Layer"]
-        Fusion["MultiModal Fusion Engine (fusion_engine.py)<br/>- Thread Lock Synchronization<br/>- HUD Frame Annotator<br/>- Real-Time Dynamic Confidence & Feedback Engine<br/>- Session History Accumulator"]
-    end
-
-    subgraph MLPipeline["Multi-Modal AI Inference Pipeline"]
-        FER["FER CNN PyTorch Model<br/>(Facial Emotion Recognition: 7 Classes)"]
-        Pose["MediaPipe 3D Pose Tracker<br/>(33 Landmarks, Posture & Gestures)"]
-        Sound["Sound Emotion CNN<br/>(Audio MFCC Emotion Classifier)"]
-        Prosody["ProsodyNet Signal Analyzer<br/>(Pitch, RMS, Pace, Vocal Stress)"]
-        BART["BART NLI Zero-Shot Classifier<br/>(Candidate Report & Scorecard Generator)"]
-    end
-
-    MediaStream -->|"POST Base64 Frames"| FrameEP
-    MediaStream -->|"POST PCM Audio Arrays"| AudioEP
-    UI -->|"POST / GET"| ReportEP
-
-    FrameEP --> Routes
-    AudioEP --> Routes
-    ReportEP --> Routes
-
-    Routes --> Fusion
-
-    Fusion -->|"RGB OpenCV Frame"| FER
-    Fusion -->|"RGB OpenCV Frame"| Pose
-    Fusion -->|"PCM Audio Float Array"| Sound
-    Fusion -->|"PCM Audio Float Array"| Prosody
-
-    FER -->|"Facial Emotion Probabilities"| Fusion
-    Pose -->|"3D Landmarks & Gestures"| Fusion
-    Sound -->|"Vocal Emotion Prediction"| Fusion
-    Prosody -->|"Acoustic Features [F0, Stress, Pace]"| Fusion
-
-    Fusion -->|"Session History Data"| BART
-    BART -->|"Candidate Assessment Report & Scorecard"| Fusion
-
-    Fusion -->|"Annotated Frames, Emotion Summary & Metrics"| UI
+    
+    C1 & C2 & C3 & C4 --> D["Live Dashboard<br/>(Confidence %, Eye Contact, Tone)"]
+    C5 --> E["Final Candidate Scorecard"]
 ```
 
-### High-Level Architectural Flow
+---
 
-```text
-+------------------------------------------------------------------------------------+
-|                                CLIENT LAYER (React)                                |
-|    +------------------------+                        +------------------------+    |
-|    | Live Webcam Stream     |                        | Real-Time AI Dashboard |    |
-|    | & Mic Signal Capturer  |                        | HUD Stats & Scorecard  |    |
-|    +-----------+------------+                        +-----------^------------+    |
-+----------------|-------------------------------------------------|-----------------+
-                 | Base64 Frames / PCM Audio Array                 | Live Prediction JSON
-                 v                                                 | (Annotated Frame, Stats)
-+------------------------------------------------------------------|-----------------+
-|                        FLASK REST API BACKEND (Port 5000)        |                 |
-|                                                                  |                 |
-|    +-------------------------------------------------------------+------------+    |
-|    |               MULTIMODAL FUSION ENGINE (fusion_engine.py)               |    |
-|    | - Thread-safe state synchronizer                                         |    |
-|    | - Real-time metrics calculator (Eye Contact %, Dynamic Confidence)       |    |
-|    | - Real-time OpenCV HUD badge & skeleton drawing                          |    |
-|    +-------+--------------------+-------------------+--------------------+----+    |
-|            |                    |                   |                    |         |
-|            v                    v                   v                    v         |
-|   +----------------+   +----------------+  +-----------------+  +----------------+ |
-|   | FER CNN Model  |   | MediaPipe 3D   |  | Sound Emotion   |  | ProsodyNet     | |
-|   | PyTorch Weight |   | Pose Tracker   |  | Audio CNN Model |  | Acoustic Engine| |
-|   | (Facial Emotion|   | (Posture/Hands/|  | (Vocal Emotion  |  | (Pitch/Stress/ | |
-|   |  7 Classes)    |   |  Fidgeting)    |  |  7 Classes)     |  |  Pace/Pause)   | |
-|   +--------+-------+   +--------+-------+  +--------+--------+  +--------+-------+ |
-|            |                    |                   |                    |         |
-|            +--------------------+---------+---------+--------------------+         |
-|                                           |                                        |
-|                              Session History Aggregation                           |
-|                                           v                                        |
-|                        +-------------------------------------+                     |
-|                        | BART Large NLI Zero-Shot Model      |                     |
-|                        | Candidate Report & Scorecard Synthesizer|                 |
-|                        +-------------------------------------+                     |
-+------------------------------------------------------------------------------------+
-```
+### Core Components Explained
 
-### Component Details
+| Component | Built With | Explanation |
+| :--- | :--- | :--- |
+| **Frontend UI** | React.js | Interactive candidate portal displaying the live webcam feed, real-time emotion meters, posture tips, and feedback. |
+| **Backend Server** | Flask (Python) | The backend server (`app.py`) that accepts video frames & audio arrays and routes them to the AI models. |
+| **Fusion Engine** | Python (`fusion_engine.py`) | The orchestrator that blends face, pose, and voice data to calculate candidate confidence scores and HUD overlays. |
 
-1. **Frontend Presentation Layer (`frontend/`)**:
-   - Built with **React** providing an interactive candidate interview portal.
-   - Captures web camera frames encoded as JPEG Base64 and raw audio PCM arrays from browser media devices.
-   - Receives annotated OpenCV video frames and live metrics (Eye Contact %, Voice Tone, Confidence Level, Emotion Distributions) to render real-time visual gauges.
+---
 
-2. **REST API Server Layer (`backend/app.py`)**:
-   - Powered by **Flask** with cross-origin resource sharing (`flask-cors`) enabling async web client requests.
-   - Exposes RESTful endpoints for frame predictions (`/api/predict_frame`), audio analysis (`/api/predict_audio`), combined multimodal stream processing (`/api/predict_multimodal`), and final report generation (`/api/generate_report`).
+### The 5 AI Models Inside HireVisor
 
-3. **Multimodal Fusion & State Engine (`backend/services/fusion_engine.py`)**:
-   - Serves as the thread-safe central orchestrator using Python `threading.Lock`.
-   - Normalizes and combines inputs across facial, pose, and acoustic neural sub-systems.
-   - Computes weighted confidence scores, dynamic feedback prompts, and projects real-time skeletal & emotion HUD overlays directly onto video frames.
-   - Maintains continuous candidate session logs to feed into downstream LLM/NLI transformers.
-
-4. **Multi-Modal AI Inference Sub-systems (`backend/models/`)**:
-   - **Facial Emotion Detector (`fer_model.py`)**: Fine-tuned PyTorch CNN classifying facial expressions across 7 emotional states (`Angry`, `Disgust`, `Fear`, `Happy`, `Neutral`, `Sad`, `Surprise`).
-   - **3D Pose Tracker (`pose_model.py`)**: Utilizes MediaPipe Pose to track 33 spatial body landmarks, classifying postures (`Upright`, `Leaning Forward`, `Leaning Back`, `Slouched`) and hand gestures/fidgeting.
-   - **Sound Emotion Classifier (`sound_model.py`)**: PyTorch deep audio classifier analyzing MFCC spectrogram features extracted from voice input.
-   - **Prosody Signal Analyzer (`prosody_model.py`)**: Computes vocal dynamics including pitch frequency ($F_0$), RMS volume intensity, speech rate, pause frequency, and vocal stress indicators.
-   - **BART NLI Scorecard Reporter (`bart_reporter.py`)**: Uses HuggingFace BART (`facebook/bart-large-mnli`) zero-shot classification to synthesize aggregated candidate session history into natural language behavioral reports, scoring competencies like Communication, Confidence, Stress Management, and Professional Demeanor.
+1. **Facial Emotion Detector (`fer_model.py`)**: PyTorch deep learning model that reads face expressions (Happy, Neutral, Fear/Nervous, Sad, Angry, Disgust, Surprise).
+2. **Body Posture & Gesture Tracker (`pose_model.py`)**: MediaPipe 3D body tracking that checks posture (Upright vs. Slouched), hand gestures, head movement, and fidgeting.
+3. **Sound Emotion Classifier (`sound_model.py`)**: Audio neural network that predicts emotional tone directly from microphone audio.
+4. **Speech Dynamics Analyzer (`prosody_model.py`)**: Measures pitch ($F_0$), speaking tempo, pause frequency, and vocal stress level.
+5. **AI Report Generator (`bart_reporter.py`)**: HuggingFace BART NLI transformer model that synthesizes session history into a structured candidate assessment report and scorecard.
 
 ---
 
