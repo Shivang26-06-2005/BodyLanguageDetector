@@ -1,4 +1,4 @@
-# HireVisor — AI Candidate Assessment System (Final Working Project)
+# HireVisor —  Candidate Assessment System 
 
 HireVisor is an AI-powered human interview candidate assessment system. It combines multi-modal deep learning models (FER_CNN facial emotion recognition, MediaPipe 3D Pose & Body Language tracking, Sound Emotion CNN, ProsodyNet voice dynamics, and BART NLI candidate scorecard generation) connected via a Flask REST API backend to a React frontend.
 
